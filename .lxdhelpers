@@ -1,0 +1,85 @@
+#!/bin/bash
+
+_containercomp()
+{
+        local cur
+        COMPREPLY=()
+        if [ "$COMP_CWORD" -eq "1" ]; then
+                cur=${COMP_WORDS[COMP_CWORD]}
+                COMPREPLY=( $( compgen -W "$(getrunningcontainers)" -- $cur ) );
+        fi
+}
+
+sm()
+{
+        if [ -z $1 ]; then
+                echo 'Usage: sm "name of container"
+Opens a bash shell in specified container.'
+                return 0
+        fi
+
+        lxc exec "$1" bash;
+}
+
+spinup()
+{
+        if [ -z $1 ]; then
+                echo 'Usage: spinup "name of container"
+Creates a new container with the given name and then opens a bash shell in said container.
+Uses Ubuntu 16.04.'
+                return 0
+        fi
+        if ( doescontainerexist "$1" ); then
+                echo "Sorry, $1 already exists!"
+                return 1
+        fi
+        lxc launch ubuntu:16.04 "$1"
+        sm "$1"
+}
+
+doescontainerexist()
+{
+        if ( getrunningcontainers | grep -q "^$1$" ); then
+                return 0;
+        fi
+        return 1;
+}
+
+
+getrunningcontainers()
+{
+        lxc list | grep "RUNNING" | awk '{print $2}'
+}
+
+updatecont()
+{
+        if [ -z $1 ]; then
+                echo 'Usage: updatecont "container to update"
+Updates the container using apt update and apt upgrade.
+Does NOT automatically accept updates.'
+                return 0
+        fi
+        if ( ! doescontainerexist "$1" ); then
+                echo "Sorry, $1 doesn't exist. Note containers are case sensitive!"
+                return 1
+        fi
+        lxc exec "$1" apt update
+        lxc exec "$1" -- apt upgrade
+}
+
+updateallcont()
+{
+        runonallcont "apt-get update; apt-get -y upgrade"
+}
+
+runonallcont()
+{
+        if [ -z $1 ]; then
+                echo 'Usage: runonallcont "Command To Run"
+Runs the given command on all running containers.'
+                return 0
+        fi
+        getrunningcontainers | xargs -n 1 -i lxc exec {} -- /bin/sh -c "printf \"\n\n------ Running on {} ------\n\n\"; $1"
+}
+
+complete -F _containercomp updatecont doescontainerexist sm

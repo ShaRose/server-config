@@ -1,0 +1,8 @@
+*
+
+!.gitignore
+!.lxdhelpers
+!.bashrc
+!.ssh/
+.ssh/*
+!.ssh/authorized_keys
